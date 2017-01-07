@@ -17,43 +17,56 @@ request = Net::HTTP::Post.new(url)
 request["content-type"] = 'application/json'
 request.body = "{ \"q\": \"#{query}\", \"source\": \"#{source}\", \"target\": \"#{target}\" }"
 
-response = http.request(request)
-json = JSON.parse(response.read_body)
+begin
+  response = http.request(request)
+  json = JSON.parse(response.read_body)
 
-throw response.read_body unless json['translation']
+  throw response.read_body unless json['translation']
 
-items = []
+  items = []
 
-if json['suggestion'] && json['suggestion'].length > 0
-  items << <<-EOF
-    <item uid="translation-suggestion" autocomplete="#{json['suggestion']}">
-      <title>#{json['suggestion']}</title>
-      <icon>icon.png</icon>
-      <subtitle>Did you mean this?</subtitle>
-    </item>
-  EOF
-end
-
-if json['translations']
-  json['translations'].each_with_index do |translation, i|
+  if json['suggestion'] && json['suggestion'].length > 0
     items << <<-EOF
-      <item uid="translation-#{i}" arg="#{translation['translation']}">
-        <title>#{translation['translation']}</title>
+      <item uid="translation-suggestion" autocomplete="#{json['suggestion']}">
+        <title>#{json['suggestion']}</title>
         <icon>icon.png</icon>
-        <subtitle>#{translation['type']} － #{translation['meaning']}</subtitle>
+        <subtitle>Did you mean this?</subtitle>
       </item>
     EOF
   end
-end
 
-puts <<-EOF
-<?xml version="1.0"?>
-<items>
-  <item uid="translation" arg="#{json['translation']}">
-    <title>#{json['translation']}</title>
-    <icon>icon.png</icon>
-    <subtitle>#{target_display_name}</subtitle>
-  </item>
-  #{items.join("\n")}
-</items>
-EOF
+  if json['translations']
+    json['translations'].each_with_index do |translation, i|
+      items << <<-EOF
+        <item uid="translation-#{i}" arg="#{translation['translation']}">
+          <title>#{translation['translation']}</title>
+          <icon>icon.png</icon>
+          <subtitle>#{translation['type']} － #{translation['meaning']}</subtitle>
+        </item>
+      EOF
+    end
+  end
+
+  puts <<-EOF
+    <?xml version="1.0"?>
+    <items>
+      <item uid="translation" arg="#{json['translation']}">
+        <title>#{json['translation']}</title>
+        <icon>icon.png</icon>
+        <subtitle>#{target_display_name}</subtitle>
+      </item>
+      #{items.join("\n")}
+    </items>
+  EOF
+rescue Errno::ECONNREFUSED => e
+  puts <<-EOF
+    <?xml version="1.0"?>
+    <items>
+      <item uid="translation-server-not-started">
+        <title>Translation Server Not Started</title>
+        <icon>icon.png</icon>
+        <subtitle>Type the command "tr server:start" to start the server.</subtitle>
+      </item>
+    </items>
+  EOF
+end
