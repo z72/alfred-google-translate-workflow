@@ -125,12 +125,18 @@ function translate(source_lang, target_lang, query, callback) {
   });
 }
 
-function clickOnRect(page, rect) {
-  page.sendEvent('click', rect.left + rect.width / 2, rect.top + rect.height / 2);
+function suspendServer() {
+  console.log('Suspending server...');
+  require('child_process').spawn('sh', ['suspend-server.sh'], { stdio: 'inherit' });
 }
+
+var suspendServerTimeout = null;
 
 var service = server.listen('127.0.0.1:54234', function(request, response) {
   try {
+    if (suspendServerTimeout) clearTimeout(suspendServerTimeout);
+    suspendServerTimeout = setTimeout(suspendServer, 10000);
+
     switch (request.url) {
 
     case '/translate':
